@@ -1,0 +1,67 @@
+services:
+  # Serviço para o MySQL
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: afterlife
+      MYSQL_USER: user # Caso alterar este valor e o código não funcionar, voltar ao padrão: user
+      MYSQL_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  # Serviço para o PhpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "8000:80"
+    depends_on:
+      - db
+
+  # Serviço para o PHP-FPM com PHP 8 e PDO MySQL
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: php_fpm
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      - db
+
+  # Serviço para o Nginx
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./frontend/dist:/var/www/html/frontend
+      - ./backend:/var/www/html
+    depends_on:
+      - php
+
+  # Serviço para o frontend (Vue.js com Vite)
+  frontend:
+    image: node:18
+    container_name: frontend_vue
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - php
+
+volumes:
+  db_data: {}
